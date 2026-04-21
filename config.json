@@ -1,0 +1,20 @@
+{
+  "baseURL": "https://api.vsellm.ru/v1",
+  "model": "qwen/qwen3.5-flash",
+  "targetAspectRatio": { "w": 1, "h": 1 },
+  "tightThreshold": 0.95,
+  "vlmResizeWidth": 512,
+  "concurrency": 50,
+  "requestsPerMinute": 200,
+  "retryAttempts": 3,
+  "retryBaseDelayMs": 1000,
+  "outputFormat": "webp",
+  "outputQuality": 75,
+  "skipExisting": true,
+  "dryRun": false,
+  "inputDir": "C:/-=Букеты=-/input",
+  "outputDir": "C:/-=Букеты=-/output",
+  "errorDir": "C:/-=Букеты=-/errors",
+  "promptFile": "./prompt.txt",
+  "enableThinking": false
+}

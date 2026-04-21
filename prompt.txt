@@ -1,0 +1,7 @@
+You are analyzing a bouquet photo.
+Find the bouquet including its packaging, wrapping, or basket.
+Return ONLY this JSON with no explanation, no markdown, no text:
+{"top": <integer>, "bottom": <integer>}
+Where "top" is the Y pixel coordinate of the top edge of the bouquet,
+and "bottom" is the Y pixel coordinate of the bottom edge of the bouquet.
+"bottom" must be greater than "top".

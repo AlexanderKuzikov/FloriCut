@@ -1,25 +1,43 @@
 import sharp from 'sharp';
 import { Config, VlmBounds, CropRect } from './types.js';
 
+export type CropResult =
+  | { ok: true;  crop: CropRect }
+  | { ok: false; reason: string; tight: boolean };
+
 export function calcCrop(
   imgW: number,
   imgH: number,
   bounds: VlmBounds,
   config: Config
-): CropRect | null {
+): CropResult {
   const { w, h } = config.targetAspectRatio;
-  const targetH = Math.round(imgW * (h / w));
+  const targetH  = Math.round(imgW * (h / w));
 
-  if (imgH <= targetH) return null;
+  if (imgH <= targetH) {
+    return { ok: false, tight: false, reason: `imgH(${imgH}) <= targetH(${targetH}), skip` };
+  }
 
-  const topPx    = (bounds.top / 100) * imgH;
+  const topPx    = (bounds.top    / 100) * imgH;
   const bottomPx = (bounds.bottom / 100) * imgH;
-  const centerY  = (topPx + bottomPx) / 2;
+  const bouquetH = bottomPx - topPx;
 
-  let cropTop = Math.round(centerY - targetH / 2);
+  if (bouquetH > targetH * config.tightThreshold) {
+    return {
+      ok: false,
+      tight: true,
+      reason: `bouquet ${Math.round(bouquetH)}px > targetH(${targetH}) * threshold(${config.tightThreshold})`,
+    };
+  }
+
+  // Якорь по верху букета + отступ сверху
+  const topPaddingPx = Math.round(targetH * config.topPadding);
+  let cropTop = Math.round(topPx - topPaddingPx);
+
+  // Не уходим за границы кадра
   cropTop = Math.max(0, Math.min(cropTop, imgH - targetH));
 
-  return { top: cropTop, height: targetH, width: imgW };
+  return { ok: true, crop: { top: cropTop, height: targetH, width: imgW } };
 }
 
 export async function cropAndSave(

@@ -33,9 +33,9 @@ export async function processAll(config: Config): Promise<void> {
   }, cliProgress.Presets.shades_classic);
 
   const bar = multibar.create(total, 0, {
-    ok: 0, skip: 0, err: 0,
+    ok: 0, skip: 0, tight: 0, err: 0,
   }, {
-    format: '{bar} {percentage}% | {value}/{total} | ok:{ok} skip:{skip} err:{err}',
+    format: '{bar} {percentage}% | {value}/{total} | ok:{ok} skip:{skip} tight:{tight} err:{err}',
   });
 
   const statsBar = multibar.create(1, 0, {}, {
@@ -46,7 +46,7 @@ export async function processAll(config: Config): Promise<void> {
   });
 
   const statsInterval = setInterval(() => {
-    const processed = stats.ok + stats.skip + stats.err;
+    const processed = stats.ok + stats.skip + stats.tight + stats.err;
     const remaining = total - processed;
     statsBar.update(0, {
       rpm:      stats.rpm,
@@ -70,7 +70,7 @@ export async function processAll(config: Config): Promise<void> {
     .filter(r => r.status === 'error')
     .forEach(r => logger.error(`${r.file}: ${(r as any).reason}`));
 
-  const summary = `Готово: ok=${stats.ok} skip=${stats.skip} err=${stats.err}`;
+  const summary = `Готово: ok=${stats.ok} skip=${stats.skip} tight=${stats.tight} err=${stats.err}`;
   logger.info(summary);
   process.stdout.write(summary + '\n');
 }
@@ -85,38 +85,48 @@ async function processOne(
   const outputPath = path.join(config.outputDir, file);
   const errorPath  = path.join(config.errorDir,  file);
 
+  const update = () => bar.increment(1, {
+    ok: statsObj.ok, skip: statsObj.skip, tight: statsObj.tight, err: statsObj.err,
+  });
+
   try {
     if (config.skipExisting) {
       try {
         await fs.access(outputPath);
         logger.info(`skip (exists): ${file}`);
         statsObj.skip++;
-        bar.increment(1, { ok: statsObj.ok, skip: statsObj.skip, err: statsObj.err });
+        update();
         return { status: 'skip', file, reason: 'exists' };
       } catch {}
     }
 
     const { width: imgW, height: imgH } = await getMetadata(inputPath);
     const { bounds, latencyMs }         = await getBounds(inputPath, config);
-    const crop                          = calcCrop(imgW, imgH, bounds, config);
+    const result                        = calcCrop(imgW, imgH, bounds, config);
 
     statsObj.record(latencyMs);
 
-    if (!crop) {
-      const reason = `imgH(${imgH}) <= targetH, no crop needed`;
-      logger.info(`skip: ${file} — ${reason}`);
-      statsObj.skip++;
-      bar.increment(1, { ok: statsObj.ok, skip: statsObj.skip, err: statsObj.err });
-      return { status: 'skip', file, reason };
+    if (!result.ok) {
+      if (result.tight) {
+        logger.tight(file, result.reason);
+        statsObj.tight++;
+        update();
+        return { status: 'tight', file, reason: result.reason };
+      } else {
+        logger.info(`skip: ${file} — ${result.reason}`);
+        statsObj.skip++;
+        update();
+        return { status: 'skip', file, reason: result.reason };
+      }
     }
 
     if (!config.dryRun) {
-      await cropAndSave(inputPath, outputPath, crop, config);
+      await cropAndSave(inputPath, outputPath, result.crop, config);
     }
 
-    logger.info(`ok: ${file} — crop top=${crop.top} height=${crop.height} latency=${latencyMs}ms`);
+    logger.info(`ok: ${file} — crop top=${result.crop.top} height=${result.crop.height} latency=${latencyMs}ms`);
     statsObj.ok++;
-    bar.increment(1, { ok: statsObj.ok, skip: statsObj.skip, err: statsObj.err });
+    update();
     return { status: 'ok', file, latencyMs };
 
   } catch (e: any) {
@@ -126,7 +136,7 @@ async function processOne(
       await fs.copyFile(inputPath, errorPath).catch(() => {});
     }
     statsObj.err++;
-    bar.increment(1, { ok: statsObj.ok, skip: statsObj.skip, err: statsObj.err });
+    update();
     return { status: 'error', file, reason };
   }
 }

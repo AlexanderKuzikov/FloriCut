@@ -7,6 +7,8 @@ export interface Config {
   baseURL: string;
   model: string;
   targetAspectRatio: AspectRatio;
+  tightThreshold: number;
+  topPadding: number;
   vlmResizeWidth: number;
   concurrency: number;
   requestsPerMinute: number;
@@ -38,4 +40,5 @@ export interface CropRect {
 export type ProcessResult =
   | { status: 'ok';    file: string; latencyMs: number }
   | { status: 'skip';  file: string; reason: string }
+  | { status: 'tight'; file: string; reason: string }
   | { status: 'error'; file: string; reason: string };

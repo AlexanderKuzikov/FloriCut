@@ -2,9 +2,10 @@ export class Stats {
   private latencies:  number[] = [];
   private timestamps: number[] = [];
   private startTime = Date.now();
-  ok   = 0;
-  skip = 0;
-  err  = 0;
+  ok    = 0;
+  skip  = 0;
+  tight = 0;
+  err   = 0;
 
   record(latencyMs: number): void {
     this.latencies.push(latencyMs);

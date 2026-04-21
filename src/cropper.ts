@@ -30,11 +30,17 @@ export function calcCrop(
     };
   }
 
-  // Якорь по верху букета + отступ сверху
   const topPaddingPx = Math.round(targetH * config.topPadding);
+
+  // Шаг 1: якорим по верху букета с отступом сверху
   let cropTop = Math.round(topPx - topPaddingPx);
 
-  // Не уходим за границы кадра
+  // Шаг 2: если низ букета вылезает из кадра — сдвигаем cropTop вверх
+  if (bottomPx > cropTop + targetH) {
+    cropTop = Math.round(bottomPx - targetH);
+  }
+
+  // Шаг 3: не уходим за границы кадра
   cropTop = Math.max(0, Math.min(cropTop, imgH - targetH));
 
   return { ok: true, crop: { top: cropTop, height: targetH, width: imgW } };

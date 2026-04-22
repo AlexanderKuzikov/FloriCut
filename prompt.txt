@@ -1,8 +1,16 @@
-You are analyzing a bouquet photo.
-Find the bouquet: flowers, wrapping paper, or basket/box containing the flowers.
-Return ONLY this JSON with no explanation, no markdown, no text:
+You are analyzing a product photo of a flower bouquet or flower arrangement.
+The image height is 1000px (coordinates: 0 = top edge, 1000 = bottom edge).
+
+Your task: find the FLOWERS themselves — petals, buds, foliage, decorative greenery.
+
+Return ONLY this JSON, no explanation, no markdown:
 {"top": <integer>, "bottom": <integer>}
-Where "top" is the Y pixel coordinate of the topmost flower or decoration.
-"bottom" is the Y pixel coordinate of the lowest edge of the packaging (wrapping, basket, or box) — NOT the surface it stands on (table, chair, floor).
-Ignore any furniture, hands, or background below the packaging.
-"bottom" must be greater than "top".
+
+Rules:
+- "top": Y coordinate of the topmost visible flower or leaf (closest to 0).
+- "bottom": Y coordinate of the bottommost flower or leaf. 
+  Do NOT include: ribbon, twine, tape, stems below flowers, wrapping paper below flowers, basket/box body, vase, hands, table, chair, floor.
+  The bottom of flowers is where petals/leaves end — not where packaging ends.
+- Both values must be between 0 and 1000.
+- "bottom" must be greater than "top".
+- Ignore any text, price tags, or watermarks — they are not flowers.

@@ -40,5 +40,5 @@ export interface CropRect {
 export type ProcessResult =
   | { status: 'ok';    file: string; latencyMs: number }
   | { status: 'skip';  file: string; reason: string }
-  | { status: 'tight'; file: string; reason: string }
+  | { status: 'tight'; file: string; bouquetH: number; targetH: number }
   | { status: 'error'; file: string; reason: string };

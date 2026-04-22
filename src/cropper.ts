@@ -3,7 +3,8 @@ import { Config, VlmBounds, CropRect } from './types.js';
 
 export type CropResult =
   | { ok: true;  crop: CropRect }
-  | { ok: false; reason: string; tight: boolean };
+  | { ok: false; tight: false; reason: string }
+  | { ok: false; tight: true;  bouquetH: number; targetH: number; reason: string };
 
 export function calcCrop(
   imgW: number,
@@ -15,27 +16,23 @@ export function calcCrop(
   const targetH  = Math.round(imgW * (h / w));
 
   if (imgH <= targetH) {
-    return { ok: false, tight: false, reason: `imgH(${imgH}) <= targetH(${targetH}), skip` };
+    return { ok: false, tight: false, reason: `imgH(${imgH})<=targetH(${targetH})` };
   }
 
   const topPx    = (bounds.top    / 100) * imgH;
   const bottomPx = (bounds.bottom / 100) * imgH;
-  const bouquetH = bottomPx - topPx;
+  const bouquetH = Math.round(bottomPx - topPx);
 
   if (bouquetH > targetH * config.tightThreshold) {
-    return {
-      ok: false,
-      tight: true,
-      reason: `bouquet ${Math.round(bouquetH)}px > targetH(${targetH}) * threshold(${config.tightThreshold})`,
-    };
+    return { ok: false, tight: true, bouquetH, targetH, reason: `bouquet ${bouquetH}px > targetH(${targetH})*${config.tightThreshold}` };
   }
 
   const topPaddingPx = Math.round(targetH * config.topPadding);
 
-  // Шаг 1: якорим по верху букета с отступом сверху
+  // Шаг 1: якорим по верху букета с отступом
   let cropTop = Math.round(topPx - topPaddingPx);
 
-  // Шаг 2: низ букета не влезает — двигаем cropTop вверх ровно на нужное
+  // Шаг 2: если низ букета не влезает — двигаем вверх ровно на нужное
   if (bottomPx > cropTop + targetH) {
     cropTop = Math.round(bottomPx - targetH);
   }
@@ -43,13 +40,9 @@ export function calcCrop(
   // Шаг 3: не уходим выше 0
   cropTop = Math.max(0, cropTop);
 
-  // Шаг 4: если даже при cropTop=0 низ букета не влезает — физический tight
+  // Шаг 4: если даже при cropTop=0 низ не влезает — физический tight
   if (cropTop + targetH > imgH) {
-    return {
-      ok: false,
-      tight: true,
-      reason: `bouquet bottom=${Math.round(bottomPx)}px не влезает в imgH=${imgH} при targetH=${targetH}`,
-    };
+    return { ok: false, tight: true, bouquetH, targetH, reason: `bottom=${Math.round(bottomPx)} не влезает в imgH=${imgH}` };
   }
 
   return { ok: true, crop: { top: cropTop, height: targetH, width: imgW } };

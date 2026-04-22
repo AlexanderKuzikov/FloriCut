@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import cliProgress from 'cli-progress';
 import { Config, ProcessResult } from './types.js';
-import { getBounds } from './vlm.js';
+import { getBounds, initVlm } from './vlm.js';
 import { calcCrop, cropAndSave } from './cropper.js';
 import { getMetadata } from './utils.js';
 import { logger, logPath } from './logger.js';
@@ -21,6 +21,7 @@ export async function processAll(config: Config): Promise<void> {
   await fs.mkdir(config.outputDir, { recursive: true });
   await fs.mkdir(config.errorDir,  { recursive: true });
 
+  initVlm(config);
   initLimiter(config);
 
   const total = files.length;
@@ -110,11 +111,10 @@ async function processOne(
 
     if (!result.ok) {
       if (result.tight) {
-        logger.tight(file, 0, 0); // reason уже содержит числа, но для компактности:
-        // лучше пробросить bouquetH и targetH — см. ниже
+        logger.tight(file, result.bouquetH, result.targetH);
         statsObj.tight++;
         update();
-        return { status: 'tight', file, reason: result.reason };
+        return { status: 'tight', file, bouquetH: result.bouquetH, targetH: result.targetH };
       } else {
         logger.skip(file, result.reason);
         statsObj.skip++;

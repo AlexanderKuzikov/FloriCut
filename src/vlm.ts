@@ -1,17 +1,15 @@
 import OpenAI from 'openai';
 import sharp from 'sharp';
 import { Config, VlmBounds } from './types.js';
-import { logger, fileId } from './logger.js';
+import { logger } from './logger.js';
 import { withLimit } from './limiter.js';
 
 const VLM_HEIGHT = 1000;
 
 let client: OpenAI;
-let config_: Config;
 
 export function initVlm(config: Config): void {
-  config_ = config;
-  client  = new OpenAI({
+  client = new OpenAI({
     apiKey:  process.env.OPENAI_API_KEY!,
     baseURL: config.baseURL,
   });
@@ -22,7 +20,6 @@ async function toBase64(imagePath: string): Promise<string> {
     .resize({ height: VLM_HEIGHT, withoutEnlargement: false })
     .webp({ quality: 80 })
     .toBuffer();
-
   return buf.toString('base64');
 }
 
@@ -80,13 +77,13 @@ function parseBounds(raw: string): VlmBounds {
       bottomPx = Number(parsed.bottom);
     } catch {
       const numbers = [...jsonMatch[0].matchAll(/\d+/g)].map(m => Number(m[0]));
-      if (numbers.length < 2) throw new Error(`cannot parse bounds from: ${raw}`);
+      if (numbers.length < 2) throw new Error(`cannot parse bounds: ${raw}`);
       topPx    = numbers[0];
       bottomPx = numbers[1];
     }
   } else {
     const numbers = [...raw.matchAll(/\d+/g)].map(m => Number(m[0]));
-    if (numbers.length < 2) throw new Error(`cannot parse bounds from: ${raw}`);
+    if (numbers.length < 2) throw new Error(`cannot parse bounds: ${raw}`);
     topPx    = numbers[0];
     bottomPx = numbers[1];
   }

@@ -2,8 +2,7 @@ import fs from 'fs';
 import path from 'path';
 
 function makeLogPath(): string {
-  const now = new Date();
-  const ts = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+  const ts = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
   return path.resolve(`floricut_${ts}.log`);
 }
 
@@ -15,30 +14,22 @@ function hms(): string {
 }
 
 export function fileId(filePath: string): string {
-  const base = path.basename(filePath, path.extname(filePath));
-  return base.slice(-6);
+  return path.basename(filePath, path.extname(filePath)).slice(-6);
 }
 
 export const logger = {
-  vlm: (file: string, top: number, bottom: number, ms: number) => {
-    stream.write(`${hms()} V  ${fileId(file)} ${top} ${bottom} ${ms}\n`);
-  },
-  ok: (file: string, cropTop: number, height: number, ms: number) => {
-    stream.write(`${hms()} OK ${fileId(file)} ${cropTop} ${height} ${ms}\n`);
-  },
-  tight: (file: string, bouquetH: number, targetH: number) => {
-    stream.write(`${hms()} TI ${fileId(file)} ${bouquetH}>${targetH}\n`);
-  },
-  skip: (file: string, reason: string) => {
-    stream.write(`${hms()} SK ${fileId(file)} ${reason}\n`);
-  },
-  error: (file: string, reason: string) => {
-    stream.write(`${hms()} ER ${fileId(file)} ${reason}\n`);
-  },
-  warn: (msg: string) => {
-    stream.write(`${hms()} WA - ${msg}\n`);
-  },
-  info: (msg: string) => {
-    stream.write(`${hms()} IN - ${msg}\n`);
-  },
+  vlm:   (file: string, top: number, bottom: number, ms: number) =>
+    stream.write(`${hms()} V  ${fileId(file)} ${top} ${bottom} ${ms}\n`),
+  ok:    (file: string, cropTop: number, height: number, ms: number) =>
+    stream.write(`${hms()} OK ${fileId(file)} ${cropTop} ${height} ${ms}\n`),
+  tight: (file: string, bouquetH: number, targetH: number) =>
+    stream.write(`${hms()} TI ${fileId(file)} ${bouquetH}>${targetH}\n`),
+  skip:  (file: string, reason: string) =>
+    stream.write(`${hms()} SK ${fileId(file)} ${reason}\n`),
+  error: (fileOrMsg: string, reason?: string) =>
+    stream.write(`${hms()} ER ${reason ? fileId(fileOrMsg) : '-'} ${reason ?? fileOrMsg}\n`),
+  warn:  (msg: string) =>
+    stream.write(`${hms()} WA - ${msg}\n`),
+  info:  (msg: string) =>
+    stream.write(`${hms()} IN - ${msg}\n`),
 };

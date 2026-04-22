@@ -4,6 +4,8 @@ import { Config, VlmBounds } from './types.js';
 import { logger } from './logger.js';
 import { withLimit } from './limiter.js';
 
+const VLM_HEIGHT = 1000;
+
 let client: OpenAI;
 let config_: Config;
 
@@ -15,28 +17,20 @@ export function initVlm(config: Config): void {
   });
 }
 
-async function toBase64(
-  imagePath: string,
-  resizeWidth: number
-): Promise<{ base64: string; resizedHeight: number }> {
+async function toBase64(imagePath: string): Promise<string> {
   const buf = await sharp(imagePath)
-    .resize({ width: resizeWidth, withoutEnlargement: true })
+    .resize({ height: VLM_HEIGHT, withoutEnlargement: false })
     .webp({ quality: 80 })
     .toBuffer();
 
-  const meta = await sharp(buf).metadata();
-
-  return {
-    base64: buf.toString('base64'),
-    resizedHeight: meta.height!,
-  };
+  return buf.toString('base64');
 }
 
 export async function getBounds(
   imagePath: string,
   config: Config
 ): Promise<{ bounds: VlmBounds; latencyMs: number }> {
-  const { base64, resizedHeight } = await toBase64(imagePath, config.vlmResizeWidth);
+  const base64 = await toBase64(imagePath);
 
   const requestFn = async () => {
     const t0 = Date.now();
@@ -64,41 +58,43 @@ export async function getBounds(
     const latencyMs = Date.now() - t0;
     const raw       = response.choices[0]?.message?.content ?? '';
 
-    logger.info(`VLM raw [${imagePath}]: ${raw} (resizedHeight=${resizedHeight}, ${latencyMs}ms)`);
+    logger.info(`VLM raw [${imagePath}]: ${raw} (height=${VLM_HEIGHT}, ${latencyMs}ms)`);
 
-    return { bounds: parseBounds(raw, resizedHeight), latencyMs };
+    return { bounds: parseBounds(raw), latencyMs };
   };
 
   return withLimit(requestFn, config.retryAttempts, config.retryBaseDelayMs);
 }
 
-function parseBounds(raw: string, resizedHeight: number): VlmBounds {
-  const numbers = [...raw.matchAll(/\d+/g)].map(m => Number(m[0]));
-
-  if (numbers.length < 2) {
-    throw new Error(`cannot extract two numbers from: ${raw}`);
+function parseBounds(raw: string): VlmBounds {
+  const match = raw.match(/\{[^}]+\}/);
+  if (!match) {
+    throw new Error(`no JSON object found in: ${raw}`);
   }
 
-  let topPx: number;
-  let bottomPx: number;
-
-  if (numbers.length >= 4) {
-    topPx    = numbers[1];
-    bottomPx = numbers[3];
-  } else {
-    topPx    = numbers[0];
-    bottomPx = numbers[1];
+  let parsed: any;
+  try {
+    parsed = JSON.parse(match[0]);
+  } catch {
+    throw new Error(`invalid JSON in: ${match[0]}`);
   }
 
-  topPx    = Math.max(0, Math.min(topPx,    resizedHeight));
-  bottomPx = Math.max(0, Math.min(bottomPx, resizedHeight));
+  const topPx    = Number(parsed.top);
+  const bottomPx = Number(parsed.bottom);
 
-  if (bottomPx <= topPx) {
-    throw new Error(`invalid bounds top=${topPx} bottom=${bottomPx} (resizedHeight=${resizedHeight})`);
+  if (!Number.isFinite(topPx) || !Number.isFinite(bottomPx)) {
+    throw new Error(`non-numeric bounds: top=${parsed.top} bottom=${parsed.bottom}`);
+  }
+
+  const top    = Math.max(0, Math.min(topPx,    VLM_HEIGHT));
+  const bottom = Math.max(0, Math.min(bottomPx, VLM_HEIGHT));
+
+  if (bottom <= top) {
+    throw new Error(`invalid bounds top=${top} bottom=${bottom}`);
   }
 
   return {
-    top:    Math.round((topPx    / resizedHeight) * 100),
-    bottom: Math.round((bottomPx / resizedHeight) * 100),
+    top:    Math.round((top    / VLM_HEIGHT) * 100),
+    bottom: Math.round((bottom / VLM_HEIGHT) * 100),
   };
 }

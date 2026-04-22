@@ -74,31 +74,31 @@ function parseBounds(raw: string): VlmBounds {
   if (jsonMatch) {
     let parsed: any;
     try {
-      parsed = JSON.parse(jsonMatch[0]);
+      parsed   = JSON.parse(jsonMatch[0]);
+      topPx    = Number(parsed.top);
+      bottomPx = Number(parsed.bottom);
     } catch {
-      throw new Error(`invalid JSON in: ${jsonMatch[0]}`);
+      // невалидный JSON типа {420, 997} — берём числа напрямую
+      const numbers = [...jsonMatch[0].matchAll(/\d+/g)].map(m => Number(m[0]));
+      if (numbers.length < 2) throw new Error(`cannot parse bounds from: ${raw}`);
+      topPx    = numbers[0];
+      bottomPx = numbers[1];
     }
-    topPx    = Number(parsed.top);
-    bottomPx = Number(parsed.bottom);
   } else {
     const numbers = [...raw.matchAll(/\d+/g)].map(m => Number(m[0]));
-    if (numbers.length < 2) {
-      throw new Error(`cannot parse bounds from: ${raw}`);
-    }
+    if (numbers.length < 2) throw new Error(`cannot parse bounds from: ${raw}`);
     topPx    = numbers[0];
     bottomPx = numbers[1];
   }
 
-  if (!Number.isFinite(topPx) || !Number.isFinite(bottomPx)) {
+  if (!Number.isFinite(topPx!) || !Number.isFinite(bottomPx!)) {
     throw new Error(`non-numeric bounds: ${raw}`);
   }
 
-  const top    = Math.max(0, Math.min(topPx,    VLM_HEIGHT));
-  const bottom = Math.max(0, Math.min(bottomPx, VLM_HEIGHT));
+  const top    = Math.max(0, Math.min(topPx!,    VLM_HEIGHT));
+  const bottom = Math.max(0, Math.min(bottomPx!, VLM_HEIGHT));
 
-  if (bottom <= top) {
-    throw new Error(`invalid bounds top=${top} bottom=${bottom}`);
-  }
+  if (bottom <= top) throw new Error(`invalid bounds top=${top} bottom=${bottom}`);
 
   return {
     top:    Math.round((top    / VLM_HEIGHT) * 100),

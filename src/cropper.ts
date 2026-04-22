@@ -35,13 +35,22 @@ export function calcCrop(
   // Шаг 1: якорим по верху букета с отступом сверху
   let cropTop = Math.round(topPx - topPaddingPx);
 
-  // Шаг 2: если низ букета вылезает из кадра — сдвигаем cropTop вверх
+  // Шаг 2: низ букета не влезает — двигаем cropTop вверх ровно на нужное
   if (bottomPx > cropTop + targetH) {
     cropTop = Math.round(bottomPx - targetH);
   }
 
-  // Шаг 3: не уходим за границы кадра
-  cropTop = Math.max(0, Math.min(cropTop, imgH - targetH));
+  // Шаг 3: не уходим выше 0
+  cropTop = Math.max(0, cropTop);
+
+  // Шаг 4: если даже при cropTop=0 низ букета не влезает — физический tight
+  if (cropTop + targetH > imgH) {
+    return {
+      ok: false,
+      tight: true,
+      reason: `bouquet bottom=${Math.round(bottomPx)}px не влезает в imgH=${imgH} при targetH=${targetH}`,
+    };
+  }
 
   return { ok: true, crop: { top: cropTop, height: targetH, width: imgW } };
 }

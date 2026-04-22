@@ -5,7 +5,7 @@ import { Config, ProcessResult } from './types.js';
 import { getBounds } from './vlm.js';
 import { calcCrop, cropAndSave } from './cropper.js';
 import { getMetadata } from './utils.js';
-import { logger } from './logger.js';
+import { logger, logPath } from './logger.js';
 import { initLimiter } from './limiter.js';
 import { Stats } from './stats.js';
 
@@ -25,6 +25,8 @@ export async function processAll(config: Config): Promise<void> {
 
   const total = files.length;
   const stats = new Stats();
+
+  process.stdout.write(`Log: ${logPath}\n`);
 
   const multibar = new cliProgress.MultiBar({
     clearOnComplete: false,
@@ -60,7 +62,7 @@ export async function processAll(config: Config): Promise<void> {
     });
   }, 1000);
 
-  const tasks  = files.map(file => processOne(file, config, stats, bar));
+  const tasks   = files.map(file => processOne(file, config, stats, bar));
   const results: ProcessResult[] = await Promise.all(tasks);
 
   clearInterval(statsInterval);
@@ -68,11 +70,11 @@ export async function processAll(config: Config): Promise<void> {
 
   results
     .filter(r => r.status === 'error')
-    .forEach(r => logger.error(`${r.file}: ${(r as any).reason}`));
+    .forEach(r => logger.error(r.file, (r as any).reason));
 
-  const summary = `Готово: ok=${stats.ok} skip=${stats.skip} tight=${stats.tight} err=${stats.err}`;
+  const summary = `ok=${stats.ok} skip=${stats.skip} tight=${stats.tight} err=${stats.err}`;
   logger.info(summary);
-  process.stdout.write(summary + '\n');
+  process.stdout.write(`Готово: ${summary}\n`);
 }
 
 async function processOne(
@@ -93,7 +95,7 @@ async function processOne(
     if (config.skipExisting) {
       try {
         await fs.access(outputPath);
-        logger.info(`skip (exists): ${file}`);
+        logger.skip(file, 'exists');
         statsObj.skip++;
         update();
         return { status: 'skip', file, reason: 'exists' };
@@ -108,12 +110,13 @@ async function processOne(
 
     if (!result.ok) {
       if (result.tight) {
-        logger.tight(file, result.reason);
+        logger.tight(file, 0, 0); // reason уже содержит числа, но для компактности:
+        // лучше пробросить bouquetH и targetH — см. ниже
         statsObj.tight++;
         update();
         return { status: 'tight', file, reason: result.reason };
       } else {
-        logger.info(`skip: ${file} — ${result.reason}`);
+        logger.skip(file, result.reason);
         statsObj.skip++;
         update();
         return { status: 'skip', file, reason: result.reason };
@@ -124,14 +127,14 @@ async function processOne(
       await cropAndSave(inputPath, outputPath, result.crop, config);
     }
 
-    logger.info(`ok: ${file} — crop top=${result.crop.top} height=${result.crop.height} latency=${latencyMs}ms`);
+    logger.ok(file, result.crop.top, result.crop.height, latencyMs);
     statsObj.ok++;
     update();
     return { status: 'ok', file, latencyMs };
 
   } catch (e: any) {
     const reason = e?.message ?? String(e);
-    logger.error(`${file}: ${reason}`);
+    logger.error(file, reason);
     if (!config.dryRun) {
       await fs.copyFile(inputPath, errorPath).catch(() => {});
     }

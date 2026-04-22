@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import sharp from 'sharp';
 import { Config, VlmBounds } from './types.js';
-import { logger } from './logger.js';
+import { logger, fileId } from './logger.js';
 import { withLimit } from './limiter.js';
 
 const VLM_HEIGHT = 1000;
@@ -57,10 +57,11 @@ export async function getBounds(
     const response  = await client.chat.completions.create(requestParams);
     const latencyMs = Date.now() - t0;
     const raw       = response.choices[0]?.message?.content ?? '';
+    const bounds    = parseBounds(raw);
 
-    logger.info(`VLM raw [${imagePath}]: ${raw} (height=${VLM_HEIGHT}, ${latencyMs}ms)`);
+    logger.vlm(imagePath, bounds.top, bounds.bottom, latencyMs);
 
-    return { bounds: parseBounds(raw), latencyMs };
+    return { bounds, latencyMs };
   };
 
   return withLimit(requestFn, config.retryAttempts, config.retryBaseDelayMs);
@@ -78,7 +79,6 @@ function parseBounds(raw: string): VlmBounds {
       topPx    = Number(parsed.top);
       bottomPx = Number(parsed.bottom);
     } catch {
-      // невалидный JSON типа {420, 997} — берём числа напрямую
       const numbers = [...jsonMatch[0].matchAll(/\d+/g)].map(m => Number(m[0]));
       if (numbers.length < 2) throw new Error(`cannot parse bounds from: ${raw}`);
       topPx    = numbers[0];

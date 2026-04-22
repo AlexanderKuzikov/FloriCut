@@ -1,22 +1,44 @@
 import fs from 'fs';
 import path from 'path';
 
-const logPath   = path.resolve('floricut.log');
-const tightPath = path.resolve('tight.log');
+function makeLogPath(): string {
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:T]/g, '').slice(0, 15);
+  return path.resolve(`floricut_${ts}.log`);
+}
 
-const logStream   = fs.createWriteStream(logPath,   { flags: 'a' });
-const tightStream = fs.createWriteStream(tightPath, { flags: 'a' });
+export const logPath = makeLogPath();
+const stream = fs.createWriteStream(logPath, { flags: 'w' });
 
-function fmt(level: string, msg: string): string {
-  return `${new Date().toISOString()} [${level}] ${msg}`;
+function hms(): string {
+  return new Date().toTimeString().slice(0, 8);
+}
+
+export function fileId(filePath: string): string {
+  const base = path.basename(filePath, path.extname(filePath));
+  return base.slice(-6);
 }
 
 export const logger = {
-  info:  (msg: string) => { logStream.write(fmt('INFO',  msg) + '\n'); },
-  warn:  (msg: string) => { logStream.write(fmt('WARN',  msg) + '\n'); },
-  error: (msg: string) => { logStream.write(fmt('ERROR', msg) + '\n'); },
-  tight: (file: string, reason: string) => {
-    tightStream.write(`${file}\t${reason}\n`);
-    logStream.write(fmt('TIGHT', `${file} — ${reason}`) + '\n');
+  vlm: (file: string, top: number, bottom: number, ms: number) => {
+    stream.write(`${hms()} V  ${fileId(file)} ${top} ${bottom} ${ms}\n`);
+  },
+  ok: (file: string, cropTop: number, height: number, ms: number) => {
+    stream.write(`${hms()} OK ${fileId(file)} ${cropTop} ${height} ${ms}\n`);
+  },
+  tight: (file: string, bouquetH: number, targetH: number) => {
+    stream.write(`${hms()} TI ${fileId(file)} ${bouquetH}>${targetH}\n`);
+  },
+  skip: (file: string, reason: string) => {
+    stream.write(`${hms()} SK ${fileId(file)} ${reason}\n`);
+  },
+  error: (file: string, reason: string) => {
+    stream.write(`${hms()} ER ${fileId(file)} ${reason}\n`);
+  },
+  warn: (msg: string) => {
+    stream.write(`${hms()} WA - ${msg}\n`);
+  },
+  info: (msg: string) => {
+    stream.write(`${hms()} IN - ${msg}\n`);
   },
 };

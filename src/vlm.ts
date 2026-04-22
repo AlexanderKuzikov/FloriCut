@@ -67,23 +67,30 @@ export async function getBounds(
 }
 
 function parseBounds(raw: string): VlmBounds {
-  const match = raw.match(/\{[^}]+\}/);
-  if (!match) {
-    throw new Error(`no JSON object found in: ${raw}`);
-  }
+  let topPx: number;
+  let bottomPx: number;
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(match[0]);
-  } catch {
-    throw new Error(`invalid JSON in: ${match[0]}`);
+  const jsonMatch = raw.match(/\{[^}]+\}/);
+  if (jsonMatch) {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(jsonMatch[0]);
+    } catch {
+      throw new Error(`invalid JSON in: ${jsonMatch[0]}`);
+    }
+    topPx    = Number(parsed.top);
+    bottomPx = Number(parsed.bottom);
+  } else {
+    const numbers = [...raw.matchAll(/\d+/g)].map(m => Number(m[0]));
+    if (numbers.length < 2) {
+      throw new Error(`cannot parse bounds from: ${raw}`);
+    }
+    topPx    = numbers[0];
+    bottomPx = numbers[1];
   }
-
-  const topPx    = Number(parsed.top);
-  const bottomPx = Number(parsed.bottom);
 
   if (!Number.isFinite(topPx) || !Number.isFinite(bottomPx)) {
-    throw new Error(`non-numeric bounds: top=${parsed.top} bottom=${parsed.bottom}`);
+    throw new Error(`non-numeric bounds: ${raw}`);
   }
 
   const top    = Math.max(0, Math.min(topPx,    VLM_HEIGHT));

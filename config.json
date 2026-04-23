@@ -1,9 +1,9 @@
 {
   "baseURL": "https://api.vsellm.ru/v1",
   "model": "qwen/qwen3.5-flash",
-  "targetAspectRatio": { "w": 1, "h": 1 },
-  "tightThreshold": 0.85,
-  "topPadding": 0.05,
+  "targetAspectRatio": { "w": 3, "h": 4 },
+  "tightThreshold": 1.00,
+  "topPadding": 0.00,
   "vlmResizeWidth": 512,
   "concurrency": 50,
   "requestsPerMinute": 200,
